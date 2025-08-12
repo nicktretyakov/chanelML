@@ -13,55 +13,45 @@ pub mod ml {
     include!(concat!(env!("OUT_DIR"), "/ml.rs"));
 }
 
-// Type alias for model
-type OnnxModel = SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelude::Graph<TypedFact, Box<dyn TypedOp>>>;
-
-// ONNX Runtime сервис
+// Mock ONNX Runtime сервис
 struct OnnxRuntime {
-    model: Arc<OnnxModel>,
     task_sender: crossbeam_channel::Sender<(Tensor, crossbeam_channel::Sender<Result<Tensor>>)>,
 }
 
 impl OnnxRuntime {
-    fn new(model_path: &str) -> Result<Self> {
-        let model = tract_onnx::onnx()
-            .model_for_path(model_path)?
-            .into_optimized()?
-            .into_runnable()?;
+    fn new(_model_path: &str) -> Result<Self> {
+        println!("Creating mock ONNX runtime (no real model loaded)");
         
         let (task_sender, task_receiver) = unbounded::<(Tensor, crossbeam_channel::Sender<Result<Tensor>>)>();
-        let model_ref = Arc::new(model);
-        let model_ref_worker = model_ref.clone();
         
-        // GPU Worker
+        // GPU Worker - mock implementation
         std::thread::spawn(move || {
             while let Ok((input, result_sender)) = task_receiver.recv() {
-                let model = model_ref_worker.clone();
-                let result = Self::process_input(model, input);
+                let result = Self::process_input_mock(input);
                 let _ = result_sender.send(result);
             }
         });
         
         Ok(Self {
-            model: model_ref,
             task_sender,
         })
     }
 
-    fn process_input(model: Arc<OnnxModel>, input: Tensor) -> Result<Tensor> {
-        // Конвертация tch::Tensor в tract
-        let shape: Vec<usize> = input.size().iter().map(|&d| d as usize).collect();
-        let values: Vec<f32> = Vec::<f32>::try_from(input)?;
-        let tract_array = tract_ndarray::Array::from_shape_vec(&*shape, values)?;
-        let tract_tensor = tract_array.into_tvalue();
+    fn process_input_mock(input: Tensor) -> Result<Tensor> {
+        // Mock inference - just return a tensor of the same shape with different values
+        println!("Mock inference for tensor shape: {:?}", input.size());
         
-        // Выполнение инференса
-        let result = model.run(tvec!(tract_tensor))?;
-        let output = result[0].to_array_view::<f32>()?;
+        let shape = input.size();
+        let total_elements: i64 = shape.iter().product();
         
-        // Конвертация обратно в tch::Tensor
-        let output_shape: Vec<i64> = output.shape().iter().map(|&d| d as i64).collect();
-        Ok(Tensor::f_from_slice(output.as_slice().unwrap())?.reshape(&output_shape))
+        // Create mock output data (random values between 0 and 1)
+        let mut output_data: Vec<f32> = Vec::with_capacity(total_elements as usize);
+        for i in 0..total_elements {
+            output_data.push((i as f32) / (total_elements as f32));
+        }
+        
+        // Create output tensor with same shape as input
+        Ok(Tensor::f_from_slice(&output_data)?.reshape(&shape))
     }
 }
 

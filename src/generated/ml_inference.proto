@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package ml;
+
+service InferenceService {
+  rpc Predict (stream TensorRequest) returns (TensorResponse) {}
+}
+
+message TensorRequest {
+  repeated float data = 1;
+  repeated int32 shape = 2;
+  string dtype = 3;
+}
+
+message TensorResponse {
+  repeated TensorProto data = 1;
+  uint32 latency_ms = 2;
+}
+
+message TensorProto {
+  repeated int32 shape = 1;
+  repeated float data = 2;
+  string dtype = 3;
+}

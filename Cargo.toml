@@ -1,0 +1,20 @@
+[package]
+name = "chanel"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tch = "0.20"
+tract-onnx = "0.21"
+tonic = "0.11"
+prost = "0.12"
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+crossbeam-channel = "0.5"
+reqwest = { version = "0.12", features = ["json"] }
+anyhow = "1.0"
+rand = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+
+[build-dependencies]
+tonic-build = "0.11"
